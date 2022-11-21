@@ -1977,9 +1977,9 @@ data20.append([])
 for y in range(0, col):
   data20[x].append('R' + str(x) + 'C' + str(y) )
 x=x+1
-print("Tipo de modelo:")
+print("A modelagem deve evitar:")
 data20[1][0] = input()
-print("Estrutura do título do modelo:")
+print("A modelagem deve:")
 data20[1][1] = input()
 
 
@@ -1992,9 +1992,9 @@ while (t == 0):
       data20.append([])
       for y in range(0, col):
         data20[x].append('R' + str(x) + 'C' + str(y) )
-      print("Tipo de modelo:")
+      print("A modelagem deve evitar:")
       data20[x][0] = input()
-      print("Estrutura do título do modelo:")
+      print("A modelagem deve:")
       data20[x][1] = input()
       x=x+1
     if f==0:
@@ -2010,8 +2010,8 @@ num1=int(input())
 if(num1==1):
   while(nothing==0):
     print("Selecione a informação que deseja corrigir")
-    print("1. O modelo deve evitar:")
-    print("2. O modelo deve:")
+    print("1. O modelo deve evitar")
+    print("2. O modelo deve")
     num2=int(input())
     print("Agora digite a numeração da linha cuja informação quer alterar:")
     num3=int(input())
@@ -2031,8 +2031,97 @@ if(num1==1):
     for i in range (1,x):
       myTable.add_row([data20[i][0],data20[i][1]])
     print(myTable)
+#--------------------------------------------------------------------------------------------------
+print("3. Exclusões")
 
 
+#--------------------------------------------------------------------------------------------------
+print("4. Categoria de objetos REVIT")
+print("Digite abaixo as informações referentes à categoria de objetos REVIT")
+data22 = []
+col = 2
+x=0
+data22.append([])
+while(x<=36):
+  for y in range(0, col):
+    data22[x].append('R' + str(x) + 'C' + str(y))
+  x=x+1
+  data22.append([])
+
+
+data22[0][0] = "Categoria de objeto"
+data22[0][1] = "Status"
+data22[1][0] = "Área"
+data22[2][0] = "Móveis sob encomenda"
+data22[3][0] = "Tetos"
+data22[4][0] = "Colunas"
+data22[5][0] = "Cortina de vidro"
+data22[6][0] = "Itens de detalhe"
+data22[7][0] = "Portas"
+data22[8][0] = "Equipamento elétrico"
+data22[9][0] = "Instalações elétricas"
+data22[10][0] = "Entorno"
+data22[11][0] = "Pisos"
+data22[12][0] = "Móveis/sistemas"
+data22[13][0] = "Modelos genéricos "
+data22[14][0] = "Iluminação"
+data22[15][0] = "Linhas"
+data22[16][0] = "Massa"
+data22[17][0] = "Equipamento Mecânico"
+data22[18][0] = "Estacionamento"
+data22[19][0] = "Vegetação"
+data22[20][0] = "Encanamento"
+data22[21][0] = "Guarda corpo"
+data22[22][0] = "Rampas"
+data22[23][0] = "Imagens rasterizadas"
+data22[24][0] = "Estradas"
+data22[25][0] = "Telhados"
+data22[26][0] = "Espaços"
+data22[27][0] = "Shafts"
+data22[28][0] = "Local"
+data22[29][0] = "Equipamento especial"
+data22[30][0] = "xxxxxxxxxxx"
+data22[31][0] = "xxxxxxxxxxx"
+data22[32][0] = "Projeto de fundações"
+data22[33][0] = "Projeto aço estrutural "
+data22[34][0] = "Topografia"
+data22[35][0] = "Paredes"
+data22[36][0] = "Janelas"
+
+
+
+for i in range (1, 37):
+  print(data22[i][0])
+  data22[i][1] = input()
+  x=x+1
+
+t = 0
+i = 1
+nothing=0
+print ("Deseja corrigir alguma informação? (Digite o número 1 se sim ou 0, caso contrário)")
+from prettytable import PrettyTable
+myTable= PrettyTable([data22[0][0],data22[0][1]])
+for i in range (1,37):
+  myTable.add_row([data22[i][0],data22[i][1]])
+print(myTable)
+num1=int(input())
+if(num1==1):
+  while(nothing==0):
+    print("Digite a numeração da linha cuja informação quer alterar:")
+    num3=int(input())
+    if( num3==0 or num3>36):
+      print("Linha não existe")
+    else:
+      print("Agora digite a informação correta:")
+      data22[num3][1] = input()
+    print("Deseja trocar mais alguma informação?(Digite 1 se sim ou 0, caso contrário)")
+    num1=int(input())
+    if(num1==0):
+      break
+    myTable= PrettyTable([data22[0][0],data22[0][1]])
+    for i in range (1,37):
+      myTable.add_row([data22[i][0],data22[i][1]])
+    print(myTable)
 #--------------------------------------------------------------------------------------------------
 pdf = PDF()
 pdf.add_page()
@@ -2082,5 +2171,9 @@ pdf.ln()
 pdf.create_table(table_data= data20, title= '                                                                  2. Padrões de modelagem', cell_width='even')
 pdf.ln()
 
+
+
+pdf.create_table(table_data= data22, title= '                                                                  4. Categorias de objetos REVIT', cell_width='even')
+pdf.ln()
 pdf.output('guia_ufpe.pdf')
 print("Operação encerrada")
