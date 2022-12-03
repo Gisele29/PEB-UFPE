@@ -2033,6 +2033,99 @@ if(num1==1):
     print(myTable)
 #--------------------------------------------------------------------------------------------------
 print("3. Exclusões")
+print("Digite abaixo as informações que devem ser excluídas para cada modelo.")
+data21 = []
+
+col = 3
+
+x = 0
+data21.append([])
+for y in range(0, col):
+    data21[x].append('R' + str(x) + 'C' + str(y))
+x = x + 1
+data21[0][0] = " "
+data21[0][1] = "Modelo"
+data21[0][2] = "Itens a serem excluídos do modelo"
+
+data21.append([])
+for y in range(0, col):
+    data21[x].append('R' + str(x) + 'C' + str(y))
+x = x + 1
+data21[1][0]= x-1
+print("Tipo de modelo:")
+data21[1][1] = input()
+print("Item a ser excluído")
+data21[1][2] = input()
+
+a=1
+
+t = 0
+j=0
+i = 1
+while (t == 0):
+  while(j==0):
+    print("Para continuar adicionando mais itens a serem excluídos para ", data21[a][0], "digite 1 e para parar digite 0.")
+    f = int(input())
+    if f == 1:
+        data21.append([])
+        for y in range(0, col):
+            data21[x].append('R' + str(x) + 'C' + str(y))
+        print("Item a ser excluído do modelo:")
+        data21[x][0]= x
+        data21[x][1] = " "
+        data21[x][2] = input()
+        x = x + 1
+    if f == 0:
+        break
+  print("Para adicionar um novo tipo de modelo e itens a serem excluídos dele, digite 1 e para parar digite 0.")
+  f = int(input())
+  if f == 1:
+    data21.append([])
+    for y in range(0, col):
+      data21[x].append('R' + str(x) + 'C' + str(y))
+    data21[x][0]= x
+    print("Tipo de modelo:")
+    data21[x][1] = input()
+    a=x
+    print("Item a ser excluído do modelo:")
+    data21[x][2] = input()
+    x = x + 1
+  if f == 0:
+    break
+nothing = 0
+print("Deseja corrigir alguma informação? (Digite 1 se sim ou 0, caso contrário)")
+from prettytable import PrettyTable
+
+myTable = PrettyTable([data21[0][0], data21[0][1], data21[0][2]])
+for i in range(1, x):
+    myTable.add_row([data21[0][0], data21[0][1], data21[0][2]])
+print(myTable)
+num1 = int(input())
+if (num1 == 1):
+    while (nothing == 0):
+        print("Selecione a informação que deseja corrigir")
+        print("1. Tipo de modelo")
+        print("2. Item a ser excluído do modelo")
+        num2 = int(input())
+        print("Agora digite a numeração da linha cuja informação quer alterar:")
+        num3 = int(input())
+        if (num3 == 0 or num3 >= x):
+            print("Linha não existe")
+        else:
+            print("Agora digite a informação correta:")
+            if (num2 == 1):
+                data21[num3][1] = input()
+            if (num2 == 2):
+                data21[num3][2] = input()
+        print("Deseja trocar mais alguma informação?(Digite 1 se sim ou 0, caso contrário)")
+        myTable = PrettyTable([data21[0][0], data21[0][1], data21[0][2]])
+        for i in range(1, x):
+          myTable.add_row([data21[0][0], data21[0][1], data21[0][2]])
+        print(myTable)
+
+        num1 = int(input())
+        if (num1 == 0):
+            break
 
 
 #--------------------------------------------------------------------------------------------------
@@ -2080,8 +2173,8 @@ data22[26][0] = "Espaços"
 data22[27][0] = "Shafts"
 data22[28][0] = "Local"
 data22[29][0] = "Equipamento especial"
-data22[30][0] = "xxxxxxxxxxx"
-data22[31][0] = "xxxxxxxxxxx"
+data22[30][0] = "Vigas"
+data22[31][0] = "Pilares"
 data22[32][0] = "Projeto de fundações"
 data22[33][0] = "Projeto aço estrutural "
 data22[34][0] = "Topografia"
@@ -2170,9 +2263,8 @@ pdf.create_table(table_data= data19, title= '                                   
 pdf.ln()
 pdf.create_table(table_data= data20, title= '                                                                  2. Padrões de modelagem', cell_width='even')
 pdf.ln()
-
-
-
+pdf.create_table(table_data= data21, title= '                                                                  3. Exclusões', cell_width='even')
+pdf.ln()
 pdf.create_table(table_data= data22, title= '                                                                  4. Categorias de objetos REVIT', cell_width='even')
 pdf.ln()
 pdf.output('guia_ufpe.pdf')
