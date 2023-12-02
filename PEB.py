@@ -1,131 +1,72 @@
-from fpdf import FPDF
-
+from fpdf import FPDF, XPos, YPos
+from prettytable import PrettyTable
 
 class PDF(FPDF):
     def create_table(self, table_data, title='', data_size=10, title_size=12, align_data='L', align_header='L',
                      cell_width='even', x_start='x_default', emphasize_data=[], emphasize_style=None,
                      emphasize_color=(0, 0, 0)):
-        """
-        table_data:
-                    list of lists with first element being list of headers
-        title:
-                    (Optional) title of table (optional)
-        data_size:
-                    the font size of table data
-        title_size:
-                    the font size fo the title of the table
-        align_data:
-                    align table data
-                    L = left align
-                    C = center align
-                    R = right align
-        align_header:
-                    align table data
-                    L = left align
-                    C = center align
-                    R = right align
-        cell_width:
-                    even: evenly distribute cell/column width
-                    uneven: base cell size on lenght of cell/column items
-                    int: int value for width of each cell/column
-                    list of ints: list equal to number of columns with the widht of each cell / column
-        x_start:
-                    where the left edge of table should start
-        emphasize_data:
-                    which data elements are to be emphasized - pass as list
-                    emphasize_style: the font style you want emphaized data to take
-                    emphasize_color: emphasize color (if other than black)
 
-        """
         default_style = self.font_style
-        if emphasize_style == None:
+        if emphasize_style is None:
             emphasize_style = default_style
 
-        # default_font = self.font_family
-        # default_size = self.font_size_pt
-        # default_style = self.font_style
-        # default_color = self.color # This does not work
-
-        # Get Width of Columns
         def get_col_widths():
             col_width = cell_width
             if col_width == 'even':
-                col_width = self.epw / len(data[
-                                               0]) - 1  # distribute content evenly   # epw = effective page width (width of page not including margins)
+                col_width = self.epw / len(table_data[0]) - 1
             elif col_width == 'uneven':
                 col_widths = []
-
-                # searching through columns for largest sized cell (not rows but cols)
-                for col in range(len(table_data[0])):  # for every row
+                for col in range(len(table_data[0])):
                     longest = 0
                     for row in range(len(table_data)):
                         cell_value = str(table_data[row][col])
                         value_length = self.get_string_width(cell_value)
                         if value_length > longest:
                             longest = value_length
-                    col_widths.append(longest + 4)  # add 4 for padding
+                    col_widths.append(longest + 4)
                 col_width = col_widths
-
-                ### compare columns
-
             elif isinstance(cell_width, list):
-                col_width = cell_width  # TODO: convert all items in list to int
+                col_width = cell_width
             else:
-                # TODO: Add try catch
                 col_width = int(col_width)
             return col_width
 
-        # Convert dict to lol
-        # Why? because i built it with lol first and added dict func after
-        # Is there performance differences?
         if isinstance(table_data, dict):
             header = [key for key in table_data]
             data = []
             for key in table_data:
                 value = table_data[key]
                 data.append(value)
-            # need to zip so data is in correct format (first, second, third --> not first, first, first)
             data = [list(a) for a in zip(*data)]
-
         else:
             header = table_data[0]
             data = table_data[1:]
 
         line_height = self.font_size * 2.5
-
         col_width = get_col_widths()
         self.set_font(size=title_size)
 
-        # Get starting position of x
-        # Determin width of table to get x starting point for centred table
         if x_start == 'C':
             table_width = 0
             if isinstance(col_width, list):
                 for width in col_width:
                     table_width += width
-            else:  # need to multiply cell width by number of cells to get table width
+            else:
                 table_width = col_width * len(table_data[0])
-            # Get x start by subtracting table width from pdf width and divide by 2 (margins)
             margin_width = self.w - table_width
-            # TODO: Check if table_width is larger than pdf width
-
-            center_table = margin_width / 2  # only want width of left margin not both
+            center_table = margin_width / 2
             x_start = center_table
             self.set_x(x_start)
         elif isinstance(x_start, int):
             self.set_x(x_start)
         elif x_start == 'x_default':
             x_start = self.set_x(self.l_margin)
-
-        # TABLE CREATION #
-
-        # add title
         if title != '':
-            self.multi_cell(0, line_height, title, border=0, align='j', ln=3, max_line_height=self.font_size)
-            self.ln(line_height)  # move cursor back to the left margin
+            self.multi_cell(0, line_height, title, border=0, align='j', new_x=XPos.RIGHT, new_y=YPos.TOP,
+                            max_line_height=self.font_size)
+            self.ln(line_height)
 
         self.set_font(size=data_size)
-        # add header
         y1 = self.get_y()
         if x_start:
             x_left = x_start
@@ -136,39 +77,42 @@ class PDF(FPDF):
             if x_start:
                 self.set_x(x_start)
             for datum in header:
-                self.multi_cell(col_width, line_height, datum, border=0, align=align_header, ln=3,
-                                max_line_height=self.font_size)
+                self.multi_cell(col_width, line_height, datum, border=0, align=align_header, new_x=XPos.RIGHT,
+                                new_y=YPos.TOP, max_line_height=self.font_size)
                 x_right = self.get_x()
-            self.ln(line_height)  # move cursor back to the left margin
+            self.ln(line_height)
             y2 = self.get_y()
             self.line(x_left, y1, x_right, y1)
             self.line(x_left, y2, x_right, y2)
-
             for row in data:
-                if x_start:  # not sure if I need this
+                if x_start:
                     self.set_x(x_start)
                 for datum in row:
                     if datum in emphasize_data:
                         self.set_text_color(*emphasize_color)
                         self.set_font(style=emphasize_style)
-                        self.multi_cell(col_width, line_height, datum, border=0, align=align_data, ln=3,
-                                        max_line_height=self.font_size)
+                        self.multi_cell(col_width, line_height, datum, border=0, align=align_data, new_x=XPos.RIGHT,
+                                        new_y=YPos.TOP, max_line_height=self.font_size)
                         self.set_text_color(0, 0, 0)
                         self.set_font(style=default_style)
+                        pass
                     else:
-                        self.multi_cell(col_width, line_height, datum, border=0, align=align_data, ln=3,
-                                        max_line_height=self.font_size)  # ln = 3 - move cursor to right with same vertical offset # this uses an object named self
-                self.ln(line_height)  # move cursor back to the left margin
+                        # Convertendo para string antes de passar para multi_cell
+                        self.multi_cell(col_width, line_height, str(datum), border=0, align=align_data,
+                                        new_x=XPos.RIGHT,
+                                        new_y=YPos.TOP, max_line_height=self.font_size)
+                self.ln(line_height)
+
 
         else:
             if x_start:
                 self.set_x(x_start)
             for i in range(len(header)):
                 datum = header[i]
-                self.multi_cell(col_width[i], line_height, datum, border=0, align=align_header, ln=3,
-                                max_line_height=self.font_size)
+                self.multi_cell(col_width[i], line_height, datum, border=0, align=align_header, new_x=XPos.RIGHT,
+                                new_y=YPos.TOP, max_line_height=self.font_size)
                 x_right = self.get_x()
-            self.ln(line_height)  # move cursor back to the left margin
+            self.ln(line_height)
             y2 = self.get_y()
             self.line(x_left, y1, x_right, y1)
             self.line(x_left, y2, x_right, y2)
@@ -185,21 +129,24 @@ class PDF(FPDF):
                     if datum in emphasize_data:
                         self.set_text_color(*emphasize_color)
                         self.set_font(style=emphasize_style)
-                        self.multi_cell(adjusted_col_width, line_height, datum, border=0, align=align_data, ln=3,
-                                        max_line_height=self.font_size)
+                        self.multi_cell(adjusted_col_width, line_height, datum, border=0, align=align_data,
+                                        new_x=XPos.RIGHT, new_y=YPos.TOP, max_line_height=self.font_size)
                         self.set_text_color(0, 0, 0)
                         self.set_font(style=default_style)
                     else:
-                        self.multi_cell(adjusted_col_width, line_height, datum, border=0, align=align_data, ln=3,
-                                        max_line_height=self.font_size)  # ln = 3 - move cursor to right with same vertical offset # this uses an object named self
-                self.ln(line_height)  # move cursor back to the left margin
+                        self.multi_cell(adjusted_col_width, line_height, datum, border=0, align=align_data,
+                                        new_x=XPos.RIGHT, new_y=YPos.TOP, max_line_height=self.font_size)
+                self.ln(line_height)
+
         y3 = self.get_y()
         self.line(x_left, y3, x_right, y3)
+
+
 
 print("Caso cometa algum erro enquanto preenche os dados, prossiga preenchendo as informações seguintes, pois ao fim de cada etapa será possível corrigir os dados incorretos")
 print("Caso não queira preencher alguma informação, apenas digite - (hífen) e prossiga.")
 import numpy as np
-
+#--------------------------------------------------------------------------------------------------
 data_as_dict = []
 row = 5
 col = 1
@@ -253,7 +200,7 @@ if(num1==1):
     num1=int(input())
     if(num1==0):
       break
-#-------------------------------------------------------------------------------------------------
+#--------------------------------------------------------------------------------------------------
 print("MEMBROS DO PROJETO")
 data = []
 col = 6
@@ -310,7 +257,7 @@ while (t == 0):
       data[x][1] = texto2
       print("Função:")
       texto3 = input()
-      data[x][2] = texto2
+      data[x][2] = texto3
       print("Empresa:")
       texto4 = input()
       data[x][3] = texto4
@@ -359,16 +306,18 @@ if(num1==1):
       if(num2==5):
         data[num3][5] = input()
     print("Deseja trocar mais alguma informação?(Digite 1 se sim ou 0, caso contrário)")
+    myTable = PrettyTable([data[0][0], data[0][1], data[0][2], data[0][3], data[0][4], data[0][5]])
+    for i in range(1, x):
+        myTable.add_row([data[i][0], data[i][1], data[i][2], data[i][3], data[i][4], data[i][5]])
+    print(myTable)
     num1=int(input())
     if(num1==0):
       break
-    myTable= PrettyTable([data[0][0],data[0][1],data[0][2],data[0][3],data[0][4],data[0][5]])
-    for i in range (1,x):
-      myTable.add_row([data[i][0],data[i][1],data[i][2],data[i][3],data[i][4],data[i][5]])
-    print(myTable)
-#-------------------------------------------------------------------------------------------------
+
+
+#--------------------------------------------------------------------------------------------------
 data2 = []
-print("Usos e Objetivos BIM")
+print("USOS E OBJETIVOS BIM")
 print("Preencha as informações referentes aos objetivos e usos BIm.")
 col = 4
 x=0
@@ -507,11 +456,11 @@ for j in range(1, x):
             data2[j][3] = data2[j][3] + '/'
         if (n == 6):
             print(plan[5])
-            data2[j][3] = data2[j][3] + plan[1]
+            data2[j][3] = data2[j][3] + plan[5]
             data2[j][3] = data2[j][3] + '/'
         if (n == 7):
             print(plan[6])
-            data2[j][3] = data2[j][3] + plan[1]
+            data2[j][3] = data2[j][3] + plan[6]
             data2[j][3] = data2[j][3] + '/'
         if (n == 8):
             print(design[0])
@@ -584,8 +533,6 @@ for j in range(1, x):
         if (aux == 1):
             print("Digite o número do próximo Uso BIM:")
 
-
-
 nothing=0
 print ("Deseja corrigir alguma informação? (Digite o número 1 se sim ou 0, caso contrário)")
 from prettytable import PrettyTable
@@ -606,7 +553,6 @@ if(num1==1):
     if( num3==0 or num3>=x):
       print("Linha não existe")
     else:
-
       if(num2==1):
         print("Digite a descrição do objetivo correta:")
         data2[num3][1] = input()
@@ -753,7 +699,7 @@ if(num1==1):
     if(num1==0):
       break
 
-#-------------------------------------------------------------------------------------------------
+#--------------------------------------------------------------------------------------------------
 print("CRONOGRAMA DO PROJETO")
 data4 = []
 
@@ -840,14 +786,15 @@ if(num1==1):
       if(num2==6):
         data4[num3][6] = input()
     print("Deseja trocar mais alguma informação?(Digite 1 se sim ou 0, caso contrário)")
+    myTable = PrettyTable([data4[0][0], data4[0][1], data4[0][2], data4[0][3], data4[0][4]])
+    for i in range(1, x):
+        myTable.add_row([data4[i][0], data4[i][1], data4[i][2], data4[i][3], data4[i][4]])
+    print(myTable)
     num1=int(input())
     if(num1==0):
       break
-    myTable= PrettyTable([data4[0][0],data4[0][1],data4[0][2],data4[0][3], data4[0][4]])
-    for i in range (1,x):
-      myTable.add_row([data4[i][0],data4[i][1],data4[i][2],data4[i][3], data4[i][4]])
-    print(myTable)
-#-------------------------------------------------------------------------------------------------
+
+#--------------------------------------------------------------------------------------------------
 print("FUNÇÕES ORGANIZACIONAIS")
 data5 = []
 
@@ -937,17 +884,17 @@ if(num1==1):
       if(num2==5):
         data5[num3][4] = input()
     print("Deseja trocar mais alguma informação?(Digite 1 se sim ou 0, caso contrário)")
+    myTable = PrettyTable([data5[0][0], data5[0][1], data5[0][2], data5[0][3], data5[0][4]])
+    for i in range(1, x):
+        myTable.add_row([data5[i][0], data5[i][1], data5[i][2], data5[i][3], data5[i][4]])
+    print(myTable)
     num1=int(input())
     if(num1==0):
       break
-    myTable= PrettyTable([data5[0][0],data5[0][1],data5[0][2],data5[0][3], data5[0][4]])
-    for i in range (1,x):
-      myTable.add_row([data5[i][0],data5[i][1],data5[i][2],data5[i][3], data5[i][4]])
-    print(myTable)
 
-#----------------------------------------------------------------------------------------------------------------
-
+#--------------------------------------------------------------------------------------------------
 data13= []
+print( "USOS BIM E FUNCIONÁRIOS")
 col = 7
 x=0
 data13.append([])
@@ -969,11 +916,87 @@ for y in range(0, col):
 texto1 = str(x)
 data13[x][0] = texto1
 print("Uso BIM:")
-texto2 = input()
+
+from prettytable import PrettyTable
+myTable= PrettyTable([info[0],info[1],info[2],info[3]])
+for i in range (0,7):
+  myTable.add_row([t1[i],t2[i],t3[i],t4[i]])
+print(myTable)
+print("Digite o número do uso BIM desejado:")
+n = int(input())
+if (n == 1):
+    print(plan[0])
+    texto2 = plan[0]
+if (n == 2):
+    print(plan[1])
+    texto2 = plan[1]
+if (n == 3):
+    print(plan[2])
+    texto2 = plan[2]
+if (n == 4):
+    print(plan[3])
+    texto2 = plan[3]
+if (n == 5):
+    print(plan[4])
+    texto2 = plan[4]
+if (n == 6):
+    print(plan[5])
+    texto2 = plan[5]
+if (n == 7):
+    print(plan[6])
+    texto2 = plan[6]
+if (n == 8):
+    print(design[0])
+    texto2 = design[0]
+if (n == 9):
+    print(design[1])
+    texto2 = design[1]
+if (n == 10):
+    print(design[2])
+    texto2 = design[2]
+if (n == 11):
+    print(design[3])
+    texto2 = design[3]
+if (n == 12):
+    print(design[4])
+    texto2 = design[4]
+if (n == 13):
+    print(design[5])
+    texto2 = design[5]
+if (n == 14):
+    print(constr[0])
+    texto2 = constr[0]
+if (n == 15):
+    print(constr[1])
+    texto2 = constr[1]
+if (n == 16):
+    print(constr[2])
+    texto2 = constr[2]
+if (n == 17):
+    print(constr[3])
+    texto2 = constr[3]
+if (n == 18):
+    print(oper[0])
+    texto2 = oper[0]
+if (n == 19):
+    print(oper[1])
+    texto2 = oper[1]
+if (n == 20):
+    print(oper[2])
+    texto2 = oper[2]
+if (n == 21):
+    print(oper[3])
+    texto2 = oper[3]
+if (n == 22):
+    print(oper[4])
+    texto2 = oper[4]
+if (n == 23):
+    print(oper[5])
+    texto2 = oper[5]
 data13[x][1] = texto2
 print("Organização:")
 texto3 = input()
-data13[x][2] = texto2
+data13[x][2] = texto3
 print("Número total de funcionários por uso BIM:")
 texto4 = input()
 data13[x][3] = texto4
@@ -1001,11 +1024,81 @@ while (t == 0):
       texto1 = str(x)
       data13[x][0] = texto1
       print("Uso BIM:")
-      texto2 = input()
+      print("Digite o número do uso BIM desejado:")
+      n = int(input())
+      if (n == 1):
+          print(plan[0])
+          texto2 = plan[0]
+      if (n == 2):
+          print(plan[1])
+          texto2 = plan[1]
+      if (n == 3):
+          print(plan[2])
+          texto2 = plan[2]
+      if (n == 4):
+          print(plan[3])
+          texto2 = plan[3]
+      if (n == 5):
+          print(plan[4])
+          texto2 = plan[4]
+      if (n == 6):
+          print(plan[5])
+          texto2 = plan[5]
+      if (n == 7):
+          print(plan[6])
+          texto2 = plan[6]
+      if (n == 8):
+          print(design[0])
+          texto2 = design[0]
+      if (n == 9):
+          print(design[1])
+          texto2 = design[1]
+      if (n == 10):
+          print(design[2])
+          texto2 = design[2]
+      if (n == 11):
+          print(design[3])
+          texto2 = design[3]
+      if (n == 12):
+          print(design[4])
+          texto2 = design[4]
+      if (n == 13):
+          print(design[5])
+          texto2 = design[5]
+      if (n == 14):
+          print(constr[0])
+          texto2 = constr[0]
+      if (n == 15):
+          print(constr[1])
+          texto2 = constr[1]
+      if (n == 16):
+          print(constr[2])
+          texto2 = constr[2]
+      if (n == 17):
+          print(constr[3])
+          texto2 = constr[3]
+      if (n == 18):
+          print(oper[0])
+          texto2 = oper[0]
+      if (n == 19):
+          print(oper[1])
+          texto2 = oper[1]
+      if (n == 20):
+          print(oper[2])
+          texto2 = oper[2]
+      if (n == 21):
+          print(oper[3])
+          texto2 = oper[3]
+      if (n == 22):
+          print(oper[4])
+          texto2 = oper[4]
+      if (n == 23):
+          print(oper[5])
+          texto2 = oper[5]
       data13[x][1] = texto2
       print("Organização:")
       texto3 = input()
-      data13[x][2] = texto2
+      data13[x][2] = texto3
       print("Número total de funcionários por uso BIM:")
       texto4 = input()
       data13[x][3] = texto4
@@ -1046,28 +1139,104 @@ if(num1==1):
     num3=int(input())
     if( num3==0 or num3>=x):
       print("Linha não existe")
+    if(num2==1):
+        print("Agora escolha a numeração correta do uso BIM:")
+        n = int(input())
+        if (n == 1):
+            print(plan[0])
+            texto2 = plan[0]
+        if (n == 2):
+            print(plan[1])
+            texto2 = plan[1]
+        if (n == 3):
+            print(plan[2])
+            texto2 = plan[2]
+        if (n == 4):
+            print(plan[3])
+            texto2 = plan[3]
+        if (n == 5):
+            print(plan[4])
+            texto2 = plan[4]
+        if (n == 6):
+            print(plan[5])
+            texto2 = plan[5]
+        if (n == 7):
+            print(plan[6])
+            texto2 = plan[6]
+        if (n == 8):
+            print(design[0])
+            texto2 = design[0]
+        if (n == 9):
+            print(design[1])
+            texto2 = design[1]
+        if (n == 10):
+            print(design[2])
+            texto2 = design[2]
+        if (n == 11):
+            print(design[3])
+            texto2 = design[3]
+        if (n == 12):
+            print(design[4])
+            texto2 = design[4]
+        if (n == 13):
+            print(design[5])
+            texto2 = design[5]
+        if (n == 14):
+            print(constr[0])
+            texto2 = constr[0]
+        if (n == 15):
+            print(constr[1])
+            texto2 = constr[1]
+        if (n == 16):
+            print(constr[2])
+            texto2 = constr[2]
+        if (n == 17):
+            print(constr[3])
+            texto2 = constr[3]
+        if (n == 18):
+            print(oper[0])
+            texto2 = oper[0]
+        if (n == 19):
+            print(oper[1])
+            texto2 = oper[1]
+        if (n == 20):
+            print(oper[2])
+            texto2 = oper[2]
+        if (n == 21):
+            print(oper[3])
+            texto2 = oper[3]
+        if (n == 22):
+            print(oper[4])
+            texto2 = oper[4]
+        if (n == 23):
+            print(oper[5])
+            texto2 = oper[5]
+        data13[num3][1] = texto2
     else:
-      print("Agora digite a informação correta:")
-      if(num2==1):
-        data13[num3][1] = input()
       if(num2==2):
+        print("Agora digite a informação correta:")
         data13[num3][2] = input()
       if(num2==3):
+        print("Agora digite a informação correta:")
         data13[num3][3] = input()
       if(num2==4):
+        print("Agora digite a informação correta:")
         data13[num3][4] = input()
       if(num2==5):
+        print("Agora digite a informação correta:")
         data13[num3][5] = input()
       if(num2==6):
+        print("Agora digite a informação correta:")
         data13[num3][6] = input()
     print("Deseja trocar mais alguma informação?(Digite 1 se sim ou 0, caso contrário)")
+    myTable = PrettyTable([data13[0][0], data13[0][1], data13[0][2], data13[0][3], data13[0][4], data13[0][5], data13[0][6]])
+    for i in range(1, x):
+        myTable.add_row([data13[i][0], data13[i][1], data13[i][2], data13[i][3], data13[i][4], data13[i][5], data13[i][6]])
+    print(myTable)
     num1=int(input())
     if(num1==0):
       break
-    myTable= PrettyTable([data13[0][0],data13[0][1],data13[0][2],data13[0][3], data13[0][4],data13[0][5],data13[0][6]])
-    for i in range (1,x):
-      myTable.add_row([data13[i][0],data13[i][1],data13[i][2],data13[i][3], data13[i][4],data13[i][5],data13[i][6]])
-    print(myTable)
+
 #--------------------------------------------------------------------------------------------------
 print("NECESSIDADES DE INFRAESTRUTURA TECNOLÓGICA - SOFTWARE")
 data10= []
@@ -1091,11 +1260,86 @@ for y in range(0, col):
 texto1 = str(x)
 data10[x][0] = texto1
 print("Uso BIM:")
-texto2 = input()
+from prettytable import PrettyTable
+myTable= PrettyTable([info[0],info[1],info[2],info[3]])
+for i in range (0,7):
+  myTable.add_row([t1[i],t2[i],t3[i],t4[i]])
+print(myTable)
+print("Digite o número do uso BIM desejado:")
+n = int(input())
+if (n == 1):
+    print(plan[0])
+    texto2 = plan[0]
+if (n == 2):
+    print(plan[1])
+    texto2 = plan[1]
+if (n == 3):
+    print(plan[2])
+    texto2 = plan[2]
+if (n == 4):
+    print(plan[3])
+    texto2 = plan[3]
+if (n == 5):
+    print(plan[4])
+    texto2 = plan[4]
+if (n == 6):
+    print(plan[5])
+    texto2 = plan[5]
+if (n == 7):
+    print(plan[6])
+    texto2 = plan[6]
+if (n == 8):
+    print(design[0])
+    texto2 = design[0]
+if (n == 9):
+    print(design[1])
+    texto2 = design[1]
+if (n == 10):
+    print(design[2])
+    texto2 = design[2]
+if (n == 11):
+    print(design[3])
+    texto2 = design[3]
+if (n == 12):
+    print(design[4])
+    texto2 = design[4]
+if (n == 13):
+    print(design[5])
+    texto2 = design[5]
+if (n == 14):
+    print(constr[0])
+    texto2 = constr[0]
+if (n == 15):
+    print(constr[1])
+    texto2 = constr[1]
+if (n == 16):
+    print(constr[2])
+    texto2 = constr[2]
+if (n == 17):
+    print(constr[3])
+    texto2 = constr[3]
+if (n == 18):
+    print(oper[0])
+    texto2 = oper[0]
+if (n == 19):
+    print(oper[1])
+    texto2 = oper[1]
+if (n == 20):
+    print(oper[2])
+    texto2 = oper[2]
+if (n == 21):
+    print(oper[3])
+    texto2 = oper[3]
+if (n == 22):
+    print(oper[4])
+    texto2 = oper[4]
+if (n == 23):
+    print(oper[5])
+    texto2 = oper[5]
 data10[x][1] = texto2
 print("Disciplina (Se aplicável):")
 texto3 = input()
-data10[x][2] = texto2
+data10[x][2] = texto3
 print("Software:")
 texto4 = input()
 data10[x][3] = texto4
@@ -1115,11 +1359,81 @@ while (t == 0):
       texto1 = str(x)
       data10[x][0] = texto1
       print("Uso BIM:")
-      texto2 = input()
+      print("Digite o número do uso BIM desejado:")
+      n = int(input())
+      if (n == 1):
+          print(plan[0])
+          texto2 = plan[0]
+      if (n == 2):
+          print(plan[1])
+          texto2 = plan[1]
+      if (n == 3):
+          print(plan[2])
+          texto2 = plan[2]
+      if (n == 4):
+          print(plan[3])
+          texto2 = plan[3]
+      if (n == 5):
+          print(plan[4])
+          texto2 = plan[4]
+      if (n == 6):
+          print(plan[5])
+          texto2 = plan[5]
+      if (n == 7):
+          print(plan[6])
+          texto2 = plan[6]
+      if (n == 8):
+          print(design[0])
+          texto2 = design[0]
+      if (n == 9):
+          print(design[1])
+          texto2 = design[1]
+      if (n == 10):
+          print(design[2])
+          texto2 = design[2]
+      if (n == 11):
+          print(design[3])
+          texto2 = design[3]
+      if (n == 12):
+          print(design[4])
+          texto2 = design[4]
+      if (n == 13):
+          print(design[5])
+          texto2 = design[5]
+      if (n == 14):
+          print(constr[0])
+          texto2 = constr[0]
+      if (n == 15):
+          print(constr[1])
+          texto2 = constr[1]
+      if (n == 16):
+          print(constr[2])
+          texto2 = constr[2]
+      if (n == 17):
+          print(constr[3])
+          texto2 = constr[3]
+      if (n == 18):
+          print(oper[0])
+          texto2 = oper[0]
+      if (n == 19):
+          print(oper[1])
+          texto2 = oper[1]
+      if (n == 20):
+          print(oper[2])
+          texto2 = oper[2]
+      if (n == 21):
+          print(oper[3])
+          texto2 = oper[3]
+      if (n == 22):
+          print(oper[4])
+          texto2 = oper[4]
+      if (n == 23):
+          print(oper[5])
+          texto2 = oper[5]
       data10[x][1] = texto2
       print("Disciplina (Se aplicável):")
       texto3 = input()
-      data10[x][2] = texto2
+      data10[x][2] = texto3
       print("Software:")
       texto4 = input()
       data10[x][3] = texto4
@@ -1150,25 +1464,99 @@ if(num1==1):
     num3=int(input())
     if( num3==0 or num3>=x):
       print("Linha não existe")
+    if (num2 == 1):
+        print("Agora escolha a numeração correta do uso BIM:")
+        n = int(input())
+        if (n == 1):
+            print(plan[0])
+            texto2 = plan[0]
+        if (n == 2):
+            print(plan[1])
+            texto2 = plan[1]
+        if (n == 3):
+            print(plan[2])
+            texto2 = plan[2]
+        if (n == 4):
+            print(plan[3])
+            texto2 = plan[3]
+        if (n == 5):
+            print(plan[4])
+            texto2 = plan[4]
+        if (n == 6):
+            print(plan[5])
+            texto2 = plan[5]
+        if (n == 7):
+            print(plan[6])
+            texto2 = plan[6]
+        if (n == 8):
+            print(design[0])
+            texto2 = design[0]
+        if (n == 9):
+            print(design[1])
+            texto2 = design[1]
+        if (n == 10):
+            print(design[2])
+            texto2 = design[2]
+        if (n == 11):
+            print(design[3])
+            texto2 = design[3]
+        if (n == 12):
+            print(design[4])
+            texto2 = design[4]
+        if (n == 13):
+            print(design[5])
+            texto2 = design[5]
+        if (n == 14):
+            print(constr[0])
+            texto2 = constr[0]
+        if (n == 15):
+            print(constr[1])
+            texto2 = constr[1]
+        if (n == 16):
+            print(constr[2])
+            texto2 = constr[2]
+        if (n == 17):
+            print(constr[3])
+            texto2 = constr[3]
+        if (n == 18):
+            print(oper[0])
+            texto2 = oper[0]
+        if (n == 19):
+            print(oper[1])
+            texto2 = oper[1]
+        if (n == 20):
+            print(oper[2])
+            texto2 = oper[2]
+        if (n == 21):
+            print(oper[3])
+            texto2 = oper[3]
+        if (n == 22):
+            print(oper[4])
+            texto2 = oper[4]
+        if (n == 23):
+            print(oper[5])
+            texto2 = oper[5]
+        data10[num3][1] = texto2
     else:
-      print("Agora digite a informação correta:")
-      if(num2==1):
-        data10[num3][1] = input()
       if(num2==2):
+        print("Agora digite a informação correta:")
         data10[num3][2] = input()
       if(num2==3):
+        print("Agora digite a informação correta:")
         data10[num3][3] = input()
       if(num2==4):
+        print("Agora digite a informação correta:")
         data10[num3][4] = input()
     print("Deseja trocar mais alguma informação?(Digite 1 se sim ou 0, caso contrário)")
+    myTable = PrettyTable([data10[0][0], data10[0][1], data10[0][2], data10[0][3], data10[0][4]])
+    for i in range(1, x):
+        myTable.add_row([data10[i][0], data10[i][1], data10[i][2], data10[i][3], data10[i][4]])
+    print(myTable)
     num1=int(input())
     if(num1==0):
       break
-    myTable= PrettyTable([data10[0][0],data10[0][1],data10[0][2],data10[0][3],data10[0][4]])
-    for i in range (1,x):
-      myTable.add_row([data10[i][0],data10[i][1],data10[i][2],data10[i][3],data10[i][4]])
-    print(myTable)
-#-------------------------------------------------------------------------------------------------
+
+#--------------------------------------------------------------------------------------------------
 print("NECESSIDADES DE INFRAESTRUTURA TECNOLÓGICA - HARDWARE/COMPUTADORES")
 data11= []
 col = 5
@@ -1191,11 +1579,86 @@ for y in range(0, col):
 texto1 = str(x)
 data11[x][0] = texto1
 print("Uso BIM:")
-texto2 = input()
+from prettytable import PrettyTable
+myTable= PrettyTable([info[0],info[1],info[2],info[3]])
+for i in range (0,7):
+  myTable.add_row([t1[i],t2[i],t3[i],t4[i]])
+print(myTable)
+print("Digite o número do uso BIM desejado:")
+n = int(input())
+if (n == 1):
+    print(plan[0])
+    texto2 = plan[0]
+if (n == 2):
+    print(plan[1])
+    texto2 = plan[1]
+if (n == 3):
+    print(plan[2])
+    texto2 = plan[2]
+if (n == 4):
+    print(plan[3])
+    texto2 = plan[3]
+if (n == 5):
+    print(plan[4])
+    texto2 = plan[4]
+if (n == 6):
+    print(plan[5])
+    texto2 = plan[5]
+if (n == 7):
+    print(plan[6])
+    texto2 = plan[6]
+if (n == 8):
+    print(design[0])
+    texto2 = design[0]
+if (n == 9):
+    print(design[1])
+    texto2 = design[1]
+if (n == 10):
+    print(design[2])
+    texto2 = design[2]
+if (n == 11):
+    print(design[3])
+    texto2 = design[3]
+if (n == 12):
+    print(design[4])
+    texto2 = design[4]
+if (n == 13):
+    print(design[5])
+    texto2 = design[5]
+if (n == 14):
+    print(constr[0])
+    texto2 = constr[0]
+if (n == 15):
+    print(constr[1])
+    texto2 = constr[1]
+if (n == 16):
+    print(constr[2])
+    texto2 = constr[2]
+if (n == 17):
+    print(constr[3])
+    texto2 = constr[3]
+if (n == 18):
+    print(oper[0])
+    texto2 = oper[0]
+if (n == 19):
+    print(oper[1])
+    texto2 = oper[1]
+if (n == 20):
+    print(oper[2])
+    texto2 = oper[2]
+if (n == 21):
+    print(oper[3])
+    texto2 = oper[3]
+if (n == 22):
+    print(oper[4])
+    texto2 = oper[4]
+if (n == 23):
+    print(oper[5])
+    texto2 = oper[5]
 data11[x][1] = texto2
 print("Hardware:")
 texto3 = input()
-data11[x][2] = texto2
+data11[x][2] = texto3
 print("Proprietário do Hardware:")
 texto4 = input()
 data11[x][3] = texto4
@@ -1215,11 +1678,81 @@ while (t == 0):
       texto1 = str(x)
       data11[x][0] = texto1
       print("Uso BIM:")
-      texto2 = input()
+      print("Digite o número do uso BIM desejado:")
+      n = int(input())
+      if (n == 1):
+          print(plan[0])
+          texto2 = plan[0]
+      if (n == 2):
+          print(plan[1])
+          texto2 = plan[1]
+      if (n == 3):
+          print(plan[2])
+          texto2 = plan[2]
+      if (n == 4):
+          print(plan[3])
+          texto2 = plan[3]
+      if (n == 5):
+          print(plan[4])
+          texto2 = plan[4]
+      if (n == 6):
+          print(plan[5])
+          texto2 = plan[5]
+      if (n == 7):
+          print(plan[6])
+          texto2 = plan[6]
+      if (n == 8):
+          print(design[0])
+          texto2 = design[0]
+      if (n == 9):
+          print(design[1])
+          texto2 = design[1]
+      if (n == 10):
+          print(design[2])
+          texto2 = design[2]
+      if (n == 11):
+          print(design[3])
+          texto2 = design[3]
+      if (n == 12):
+          print(design[4])
+          texto2 = design[4]
+      if (n == 13):
+          print(design[5])
+          texto2 = design[5]
+      if (n == 14):
+          print(constr[0])
+          texto2 = constr[0]
+      if (n == 15):
+          print(constr[1])
+          texto2 = constr[1]
+      if (n == 16):
+          print(constr[2])
+          texto2 = constr[2]
+      if (n == 17):
+          print(constr[3])
+          texto2 = constr[3]
+      if (n == 18):
+          print(oper[0])
+          texto2 = oper[0]
+      if (n == 19):
+          print(oper[1])
+          texto2 = oper[1]
+      if (n == 20):
+          print(oper[2])
+          texto2 = oper[2]
+      if (n == 21):
+          print(oper[3])
+          texto2 = oper[3]
+      if (n == 22):
+          print(oper[4])
+          texto2 = oper[4]
+      if (n == 23):
+          print(oper[5])
+          texto2 = oper[5]
       data11[x][1] = texto2
       print("Hardware:")
       texto3 = input()
-      data11[x][2] = texto2
+      data11[x][2] = texto3
       print("Proprietário do Hardware:")
       texto4 = input()
       data11[x][3] = texto4
@@ -1250,25 +1783,99 @@ if(num1==1):
     num3=int(input())
     if( num3==0 or num3>=x):
       print("Linha não existe")
+    if (num2 == 1):
+        print("Agora escolha a numeração correta do uso BIM:")
+        n = int(input())
+        if (n == 1):
+            print(plan[0])
+            texto2 = plan[0]
+        if (n == 2):
+            print(plan[1])
+            texto2 = plan[1]
+        if (n == 3):
+            print(plan[2])
+            texto2 = plan[2]
+        if (n == 4):
+            print(plan[3])
+            texto2 = plan[3]
+        if (n == 5):
+            print(plan[4])
+            texto2 = plan[4]
+        if (n == 6):
+            print(plan[5])
+            texto2 = plan[5]
+        if (n == 7):
+            print(plan[6])
+            texto2 = plan[6]
+        if (n == 8):
+            print(design[0])
+            texto2 = design[0]
+        if (n == 9):
+            print(design[1])
+            texto2 = design[1]
+        if (n == 10):
+            print(design[2])
+            texto2 = design[2]
+        if (n == 11):
+            print(design[3])
+            texto2 = design[3]
+        if (n == 12):
+            print(design[4])
+            texto2 = design[4]
+        if (n == 13):
+            print(design[5])
+            texto2 = design[5]
+        if (n == 14):
+            print(constr[0])
+            texto2 = constr[0]
+        if (n == 15):
+            print(constr[1])
+            texto2 = constr[1]
+        if (n == 16):
+            print(constr[2])
+            texto2 = constr[2]
+        if (n == 17):
+            print(constr[3])
+            texto2 = constr[3]
+        if (n == 18):
+            print(oper[0])
+            texto2 = oper[0]
+        if (n == 19):
+            print(oper[1])
+            texto2 = oper[1]
+        if (n == 20):
+            print(oper[2])
+            texto2 = oper[2]
+        if (n == 21):
+            print(oper[3])
+            texto2 = oper[3]
+        if (n == 22):
+            print(oper[4])
+            texto2 = oper[4]
+        if (n == 23):
+            print(oper[5])
+            texto2 = oper[5]
+        data11[num3][1] = texto2
     else:
-      print("Agora digite a informação correta:")
-      if(num2==1):
-        data11[num3][1] = input()
       if(num2==2):
+        print("Agora digite a informação correta:")
         data11[num3][2] = input()
       if(num2==3):
+        print("Agora digite a informação correta:")
         data11[num3][3] = input()
       if(num2==4):
+        print("Agora digite a informação correta:")
         data11[num3][4] = input()
     print("Deseja trocar mais alguma informação?(Digite 1 se sim ou 0, caso contrário)")
+    myTable = PrettyTable([data11[0][0], data11[0][1], data11[0][2], data11[0][3], data11[0][4]])
+    for i in range(1, x):
+        myTable.add_row([data11[i][0], data11[i][1], data11[i][2], data11[i][3], data11[i][4]])
+    print(myTable)
     num1=int(input())
     if(num1==0):
       break
-    myTable= PrettyTable([data11[0][0],data11[0][1],data11[0][2],data11[0][3],data11[0][4]])
-    for i in range (1,x):
-      myTable.add_row([data11[i][0],data11[i][1],data11[i][2],data11[i][3],data11[i][4]])
-    print(myTable)
-#-------------------------------------------------------------------------------------------------
+
+#--------------------------------------------------------------------------------------------------
 print("NECESSIDADES DE INFRAESTRUTURA TECNOLÓGICA - CONTEÚDO DE MODELAGEM E INFORMAÇÕES DE REFERÊNCIA")
 data12= []
 col = 5
@@ -1291,11 +1898,86 @@ for y in range(0, col):
 texto1 = str(x)
 data12[x][0] = texto1
 print("Uso BIM:")
-texto2 = input()
+from prettytable import PrettyTable
+myTable= PrettyTable([info[0],info[1],info[2],info[3]])
+for i in range (0,7):
+  myTable.add_row([t1[i],t2[i],t3[i],t4[i]])
+print(myTable)
+print("Digite o número do uso BIM desejado:")
+n = int(input())
+if (n == 1):
+    print(plan[0])
+    texto2 = plan[0]
+if (n == 2):
+    print(plan[1])
+    texto2 = plan[1]
+if (n == 3):
+    print(plan[2])
+    texto2 = plan[2]
+if (n == 4):
+    print(plan[3])
+    texto2 = plan[3]
+if (n == 5):
+    print(plan[4])
+    texto2 = plan[4]
+if (n == 6):
+    print(plan[5])
+    texto2 = plan[5]
+if (n == 7):
+    print(plan[6])
+    texto2 = plan[6]
+if (n == 8):
+    print(design[0])
+    texto2 = design[0]
+if (n == 9):
+    print(design[1])
+    texto2 = design[1]
+if (n == 10):
+    print(design[2])
+    texto2 = design[2]
+if (n == 11):
+    print(design[3])
+    texto2 = design[3]
+if (n == 12):
+    print(design[4])
+    texto2 = design[4]
+if (n == 13):
+    print(design[5])
+    texto2 = design[5]
+if (n == 14):
+    print(constr[0])
+    texto2 = constr[0]
+if (n == 15):
+    print(constr[1])
+    texto2 = constr[1]
+if (n == 16):
+    print(constr[2])
+    texto2 = constr[2]
+if (n == 17):
+    print(constr[3])
+    texto2 = constr[3]
+if (n == 18):
+    print(oper[0])
+    texto2 = oper[0]
+if (n == 19):
+    print(oper[1])
+    texto2 = oper[1]
+if (n == 20):
+    print(oper[2])
+    texto2 = oper[2]
+if (n == 21):
+    print(oper[3])
+    texto2 = oper[3]
+if (n == 22):
+    print(oper[4])
+    texto2 = oper[4]
+if (n == 23):
+    print(oper[5])
+    texto2 = oper[5]
 data12[x][1] = texto2
 print("Disciplina(Se aplicável):")
 texto3 = input()
-data12[x][2] = texto2
+data12[x][2] = texto3
 print("Conteúdo de Modelagem e Informações de Referência:")
 texto4 = input()
 data12[x][3] = texto4
@@ -1315,11 +1997,81 @@ while (t == 0):
       texto1 = str(x)
       data12[x][0] = texto1
       print("Uso BIM:")
-      texto2 = input()
+      print("Digite o número do uso BIM desejado:")
+      n = int(input())
+      if (n == 1):
+          print(plan[0])
+          texto2 = plan[0]
+      if (n == 2):
+          print(plan[1])
+          texto2 = plan[1]
+      if (n == 3):
+          print(plan[2])
+          texto2 = plan[2]
+      if (n == 4):
+          print(plan[3])
+          texto2 = plan[3]
+      if (n == 5):
+          print(plan[4])
+          texto2 = plan[4]
+      if (n == 6):
+          print(plan[5])
+          texto2 = plan[5]
+      if (n == 7):
+          print(plan[6])
+          texto2 = plan[6]
+      if (n == 8):
+          print(design[0])
+          texto2 = design[0]
+      if (n == 9):
+          print(design[1])
+          texto2 = design[1]
+      if (n == 10):
+          print(design[2])
+          texto2 = design[2]
+      if (n == 11):
+          print(design[3])
+          texto2 = design[3]
+      if (n == 12):
+          print(design[4])
+          texto2 = design[4]
+      if (n == 13):
+          print(design[5])
+          texto2 = design[5]
+      if (n == 14):
+          print(constr[0])
+          texto2 = constr[0]
+      if (n == 15):
+          print(constr[1])
+          texto2 = constr[1]
+      if (n == 16):
+          print(constr[2])
+          texto2 = constr[2]
+      if (n == 17):
+          print(constr[3])
+          texto2 = constr[3]
+      if (n == 18):
+          print(oper[0])
+          texto2 = oper[0]
+      if (n == 19):
+          print(oper[1])
+          texto2 = oper[1]
+      if (n == 20):
+          print(oper[2])
+          texto2 = oper[2]
+      if (n == 21):
+          print(oper[3])
+          texto2 = oper[3]
+      if (n == 22):
+          print(oper[4])
+          texto2 = oper[4]
+      if (n == 23):
+          print(oper[5])
+          texto2 = oper[5]
       data12[x][1] = texto2
       print("Disciplina(Se aplicável):")
       texto3 = input()
-      data12[x][2] = texto2
+      data12[x][2] = texto3
       print("Conteúdo de Modelagem e Informações de Referência:")
       texto4 = input()
       data12[x][3] = texto4
@@ -1350,26 +2102,99 @@ if(num1==1):
     num3=int(input())
     if( num3==0 or num3>=x):
       print("Linha não existe")
+    if (num2 == 1):
+        print("Agora escolha a numeração correta do uso BIM:")
+        n = int(input())
+        if (n == 1):
+            print(plan[0])
+            texto2 = plan[0]
+        if (n == 2):
+            print(plan[1])
+            texto2 = plan[1]
+        if (n == 3):
+            print(plan[2])
+            texto2 = plan[2]
+        if (n == 4):
+            print(plan[3])
+            texto2 = plan[3]
+        if (n == 5):
+            print(plan[4])
+            texto2 = plan[4]
+        if (n == 6):
+            print(plan[5])
+            texto2 = plan[5]
+        if (n == 7):
+            print(plan[6])
+            texto2 = plan[6]
+        if (n == 8):
+            print(design[0])
+            texto2 = design[0]
+        if (n == 9):
+            print(design[1])
+            texto2 = design[1]
+        if (n == 10):
+            print(design[2])
+            texto2 = design[2]
+        if (n == 11):
+            print(design[3])
+            texto2 = design[3]
+        if (n == 12):
+            print(design[4])
+            texto2 = design[4]
+        if (n == 13):
+            print(design[5])
+            texto2 = design[5]
+        if (n == 14):
+            print(constr[0])
+            texto2 = constr[0]
+        if (n == 15):
+            print(constr[1])
+            texto2 = constr[1]
+        if (n == 16):
+            print(constr[2])
+            texto2 = constr[2]
+        if (n == 17):
+            print(constr[3])
+            texto2 = constr[3]
+        if (n == 18):
+            print(oper[0])
+            texto2 = oper[0]
+        if (n == 19):
+            print(oper[1])
+            texto2 = oper[1]
+        if (n == 20):
+            print(oper[2])
+            texto2 = oper[2]
+        if (n == 21):
+            print(oper[3])
+            texto2 = oper[3]
+        if (n == 22):
+            print(oper[4])
+            texto2 = oper[4]
+        if (n == 23):
+            print(oper[5])
+            texto2 = oper[5]
+        data12[num3][1] = texto2
     else:
-      print("Agora digite a informação correta:")
-      if(num2==1):
-        data12[num3][1] = input()
       if(num2==2):
+        print("Agora digite a informação correta:")
         data12[num3][2] = input()
       if(num2==3):
+        print("Agora digite a informação correta:")
         data12[num3][3] = input()
       if(num2==4):
+        print("Agora digite a informação correta:")
         data12[num3][4] = input()
     print("Deseja trocar mais alguma informação?(Digite 1 se sim ou 0, caso contrário)")
+    myTable = PrettyTable([data12[0][0], data12[0][1], data12[0][2], data12[0][3], data12[0][4]])
+    for i in range(1, x):
+        myTable.add_row([data12[i][0], data12[i][1], data12[i][2], data12[i][3], data12[i][4]])
+    print(myTable)
     num1=int(input())
     if(num1==0):
       break
-    myTable= PrettyTable([data12[0][0],data12[0][1],data12[0][2],data12[0][3],data12[0][4]])
-    for i in range (1,x):
-      myTable.add_row([data12[i][0],data12[i][1],data12[i][2],data12[i][3],data12[i][4]])
-    print(myTable)
 
-#-------------------------------------------------------------------------------------------------
+#--------------------------------------------------------------------------------------------------
 print("PROCEDIMENTOS DE COLABORAÇÃO")
 print("1. Estratégia de colaboração")
 data6 = []
@@ -1395,13 +2220,14 @@ if(num1==1):
     print("Digite a informação correta:")
     data6[1][0] = input()
     print("Deseja corrigir novamente?(Digite 1 se sim ou 0, caso contrário)")
+    myTable = PrettyTable([data6[0][0]])
+    myTable.add_row([data6[1][0]])
+    print(myTable)
     num1=int(input())
     if(num1==0):
       break
-    myTable= PrettyTable([data6[0][0]])
-    myTable.add_row([data6[1][0]])
-    print(myTable)
-#-------------------------------------------------------------------------------------------------
+
+#--------------------------------------------------------------------------------------------------
 print("2. Procedimentos de reunião")
 print("Agora preencha as informações sobre os procedimentos de reunião")
 data7 = []
@@ -1478,24 +2304,25 @@ if(num1==1):
     else:
       print("Agora digite a informação correta:")
       if(num2==1):
-        data7[num3][1] = input()
+        data7[num3][0] = input()
       if(num2==2):
-        data7[num3][2] = input()
+        data7[num3][1] = input()
       if(num2==3):
-        data7[num3][3] = input()
+        data7[num3][2] = input()
       if(num2==4):
-        data7[num3][4] = input()
+        data7[num3][3] = input()
       if(num2==5):
-        data7[num3][5] = input()
+        data7[num3][4] = input()
     print("Deseja trocar mais alguma informação?(Digite 1 se sim ou 0, caso contrário)")
+    myTable = PrettyTable([data7[0][0], data7[0][1], data7[0][2], data7[0][3], data7[0][4]])
+    for i in range(1, x):
+        myTable.add_row([data7[i][0], data7[i][1], data7[i][2], data7[i][3], data7[i][4]])
+    print(myTable)
     num1=int(input())
     if(num1==0):
       break
-    myTable= PrettyTable([data7[0][0],data7[0][1],data7[0][2],data7[0][3],data7[0][4]])
-    for i in range (1,x):
-      myTable.add_row([data7[i][0],data7[i][1],data7[i][2],data7[i][3],data7[i][4]])
-    print(myTable)
-#-------------------------------------------------------------------------------------------------
+
+#--------------------------------------------------------------------------------------------------
 print("3. Modelo de cronograma de entrega de troca de informações para submissão e aprovação")
 data9 = []
 print("Preencha as informações solicitadas referente as trocas de informações para submissão e aprovação")
@@ -1508,15 +2335,15 @@ data9.append([])
 for y in range(0, col):
   data9[x].append('R' + str(x) + 'C' + str(y))
 x=x+1
-data9[0][0] = "Intercâmbio de informações"
+data9[0][0] = "Intercâmbio de info"
 data9[0][1] = "Remetente do arquivo"
 data9[0][2] = "Destinatário do arquivo"
-data9[0][3] = "Uma vez/Frequência"
-data9[0][4] = "Data de vencimento/ Data de início"
+data9[0][3] = "Frequência"
+data9[0][4] = "Data de venc./ Data de início"
 data9[0][5] = "Modelo de arquivo"
 data9[0][6] = "Modelo de software"
-data9[0][7] = "Tipo de arquivo original"
-data9[0][8] = "Tipo de troca de arquivo"
+data9[0][7] = "Tipo de arq. original"
+data9[0][8] = "Tipo de troca de arq."
 data9.append([])
 for y in range(0, col):
   data9[x].append('R' + str(x) + 'C' + str(y) )
@@ -1549,28 +2376,81 @@ while (t == 0):
       for y in range(0, col):
         data9[x].append('R' + str(x) + 'C' + str(y) )
       print("Intercâmbio de informações:")
-      data9[1][0] = input()
+      data9[x][0] = input()
       print("Remetente do arquivo:")
-      data9[1][1] = input()
+      data9[x][1] = input()
       print("Destinatário do arquivo:")
-      data9[1][2] = input()
+      data9[x][2] = input()
       print("Uma vez/Frequência")
-      data9[1][3]= input()
+      data9[x][3]= input()
       print("Data de vencimento/ Data de início")
-      data9[1][4]= input()
+      data9[x][4]= input()
       print("Modelo de arquivo")
-      data9[1][5]= input()
+      data9[x][5]= input()
       print("Modelo de software")
-      data9[1][6]= input()
+      data9[x][6]= input()
       print("Tipo de arquivo original")
-      data9[1][7]= input()
+      data9[x][7]= input()
       print("Tipo de troca de arquivo")
-      data9[1][8]= input()
+      data9[x][8]= input()
       x=x+1
     if f==0:
       break
+nothing=0
+print ("Deseja corrigir alguma informação? (Digite o número 1 se sim ou 0, caso contrário)")
+from prettytable import PrettyTable
+myTable= PrettyTable([data9[0][0],data9[0][1],data9[0][2],data9[0][3], data9[0][4], data9[0][5], data9[0][6],data9[0][7],data9[0][8]])
+for i in range (1,x):
+  myTable.add_row([data9[i][0],data9[i][1],data9[i][2],data9[i][3], data9[i][4], data9[i][5], data9[i][6], data9[i][7], data9[i][8]])
+print(myTable)
+num1=int(input())
+if(num1==1):
+  while(nothing==0):
+    print("Selecione a informação que deseja corrigir")
+    print("1. Intercâmbio de Informações")
+    print("2. Remetente do arquivo")
+    print("3. Destinatário do arquivo")
+    print("4. Uma vez/ Frequência")
+    print("5. Data de vencimento/ Data de início")
+    print("6. Modelo de arquivo")
+    print("7. Modelo de software")
+    print("8. Tipo de arquivo original")
+    print("9. Tipo de troca de arquivo")
+    num2=int(input())
+    print("Agora digite a numeração da linha cuja informação quer alterar:")
+    num3=int(input())
+    if( num3==0 or num3>=x):
+      print("Linha não existe")
+    else:
+      print("Agora digite a informação correta:")
+      if(num2==1):
+        data9[num3][0] = input()
+      if(num2==2):
+        data9[num3][1] = input()
+      if(num2==3):
+        data9[num3][2] = input()
+      if(num2==4):
+        data9[num3][3] = input()
+      if(num2==5):
+        data9[num3][4] = input()
+      if(num2==6):
+        data9[num3][5] = input()
+      if(num2==7):
+        data9[num3][6] = input()
+      if(num2==8):
+        data9[num3][7] = input()
+      if(num2==9):
+        data9[num3][8] = input()
+    print("Deseja trocar mais alguma informação?(Digite 1 se sim ou 0, caso contrário)")
+    myTable = PrettyTable([data9[0][0], data9[0][1], data9[0][2], data9[0][3], data9[0][4], data9[0][5], data9[0][6], data9[0][7],data9[0][8]])
+    for i in range(1, x):
+        myTable.add_row([data9[i][0], data9[i][1], data9[i][2], data9[i][3], data9[i][4], data9[i][5], data9[i][6], data9[i][7],data9[i][8]])
+    print(myTable)
+    num1=int(input())
+    if(num1==0):
+      break
 
-#-------------------------------------------------------------------------------------------------
+#----------------------------------------------------------------------------------------------
 data14 = []
 print("4. Espaço de trabalho interativo")
 print(" Descreva sobre os espaços de trabalho no projeto. A equipe do projeto deve considerar o ambiente físico necessário ao longo do ciclo de vida do projeto para acomodar a colaboração, comunicação e revisões necessárias que melhorarão o processo de tomada de decisões. Descreva como a equipe do projeto será localizada, considerando perguntas como “a equipe será alocada?” Em caso afirmativo, onde é a localização e o que será nesse espaço? Haverá um espaço BIM? Se sim, onde estará localizado e o que estará nele, como computadores, projetores, mesas, configuração de mesas? Inclua qualquer informação adicional necessária. ")
@@ -1582,8 +2462,28 @@ data14.append([])
 data14[x].append('')
 data14[0][0]="4. Espaço de trabalho interativo"
 data14[1][0] =  input()
-#--------------------------------------------------------------------------------------------------
-print ("5, Procedimentos de comunicação eletrônica")
+
+nothing=0
+print ("Deseja corrigir o Espaço de trabalho interativo? (Digite o número 1 se sim ou 0, caso contrário)")
+from prettytable import PrettyTable
+myTable= PrettyTable([data14[0][0]])
+myTable.add_row([data14[1][0]])
+print(myTable)
+num1=int(input())
+if(num1==1):
+  while(nothing==0):
+    print("Digite a informação correta:")
+    data14[1][0] = input()
+    print("Deseja corrigir novamente?(Digite 1 se sim ou 0, caso contrário)")
+    myTable = PrettyTable([data14[0][0]])
+    myTable.add_row([data14[1][0]])
+    print(myTable)
+    num1=int(input())
+    if(num1==0):
+      break
+
+#----------------------------------------------------------------------------------------------
+print ("5. Procedimentos de comunicação eletrônica")
 data15= []
 col = 7
 x=0
@@ -1610,7 +2510,7 @@ texto2 = input()
 data15[x][1] = texto2
 print("Estrutura do arquivo/nome:")
 texto3 = input()
-data15[x][2] = texto2
+data15[x][2] = texto3
 print("Tipo de arquivo:")
 texto4 = input()
 data15[x][3] = texto4
@@ -1642,7 +2542,7 @@ while (t == 0):
       data15[x][1] = texto2
       print("Estrutura do arquivo/nome:")
       texto3 = input()
-      data15[x][2] = texto2
+      data15[x][2] = texto3
       print("Tipo de arquivo:")
       texto4 = input()
       data15[x][3] = texto4
@@ -1698,17 +2598,16 @@ if(num1==1):
       if(num2==6):
         data15[num3][6] = input()
     print("Deseja trocar mais alguma informação?(Digite 1 se sim ou 0, caso contrário)")
+    myTable = PrettyTable([data15[0][0], data15[0][1], data15[0][2], data15[0][3], data15[0][4], data15[0][5], data15[0][6]])
+    for i in range(1, x):
+        myTable.add_row([data15[i][0], data15[i][1], data15[i][2], data15[i][3], data15[i][4], data15[i][5], data15[i][6]])
+    print(myTable)
     num1=int(input())
     if(num1==0):
       break
-    myTable= PrettyTable([data15[0][0],data15[0][1],data15[0][2],data15[0][3], data15[0][4],data15[0][5],data15[0][6]])
-    for i in range (1,x):
-      myTable.add_row([data15[i][0],data15[i][1],data15[i][2],data15[i][3], data15[i][4],data15[i][5],data15[i][6]])
-    print(myTable)
 
-
-#--------------------------------------------------------------------------------------------------
-print("Controle de qualidade")
+#----------------------------------------------------------------------------------------------
+print("CONTROLE DE QUALIDADE")
 print("1. Estratégia para controle de qualidade")
 print("Digite abaixo um checklist para controle de qualidade.")
 data17 = []
@@ -1795,14 +2694,15 @@ if(num1==1):
       if(num2==5):
         data17[num3][4] = input()
     print("Deseja trocar mais alguma informação?(Digite 1 se sim ou 0, caso contrário)")
+    myTable = PrettyTable([data17[0][0], data17[0][1], data17[0][2], data17[0][3], data17[0][4]])
+    for i in range(1, x):
+        myTable.add_row([data17[i][0], data17[i][1], data17[i][2], data17[i][3], data17[i][4]])
+    print(myTable)
     num1=int(input())
     if(num1==0):
       break
-    myTable= PrettyTable([data17[0][0],data17[0][1],data17[0][2],data17[0][3],data17[0][4]])
-    for i in range (1,x):
-      myTable.add_row([data17[i][0],data17[i][1],data17[i][2],data17[i][3],data17[i][4]])
-    print(myTable)
-#--------------------------------------------------------------------------------------------------
+
+#----------------------------------------------------------------------------------------------
 print("2. Precisão e tolerância do modelo")
 print("Digite abaixo as informações referentes às tolerâncias dos modelos.")
 data18 = []
@@ -1875,15 +2775,16 @@ if(num1==1):
       if(num2==3):
         data18[num3][2] = input()
     print("Deseja trocar mais alguma informação?(Digite 1 se sim ou 0, caso contrário)")
+    myTable = PrettyTable([data18[0][0], data18[0][1], data18[0][2]])
+    for i in range(1, x):
+        myTable.add_row([data18[i][0], data18[i][1], data18[i][2]])
+    print(myTable)
     num1=int(input())
     if(num1==0):
       break
-    myTable= PrettyTable([data18[0][0],data18[0][1],data18[0][2]])
-    for i in range (1,x):
-      myTable.add_row([data18[i][0],data18[i][1],data18[i][2]])
-    print(myTable)
 
-#--------------------------------------------------------------------------------------------------
+
+#----------------------------------------------------------------------------------------------
 print("ESTRUTURA DE NOMEAÇÃO DE ARQUIVOS")
 print("1. Estrutura do título de modelo")
 print("Digite abaixo as informações referentes à estrutura de nomeação para cada tipo de modelo.")
@@ -1950,14 +2851,16 @@ if (num1 == 1):
             if (num2 == 2):
                 data19[num3][1] = input()
         print("Deseja trocar mais alguma informação?(Digite 1 se sim ou 0, caso contrário)")
-        num1 = int(input())
-        if (num1 == 0):
-            break
         myTable = PrettyTable([data19[0][0], data19[0][1]])
         for i in range(1, x):
             myTable.add_row([data19[i][0], data19[i][1]])
         print(myTable)
-#--------------------------------------------------------------------------------------------------
+        num1 = int(input())
+        if (num1 == 0):
+            break
+
+
+#----------------------------------------------------------------------------------------------
 print("2. Estrutura do modelo")
 print("Digite abaixo as informações referentes à estrutura do modelo.")
 data20 = []
@@ -2024,14 +2927,15 @@ if(num1==1):
       if(num2==2):
         data20[num3][1] = input()
     print("Deseja trocar mais alguma informação?(Digite 1 se sim ou 0, caso contrário)")
+    myTable = PrettyTable([data20[0][0], data20[0][1]])
+    for i in range(1, x):
+        myTable.add_row([data20[i][0], data20[i][1]])
+    print(myTable)
     num1=int(input())
     if(num1==0):
       break
-    myTable= PrettyTable([data20[0][0],data20[0][1]])
-    for i in range (1,x):
-      myTable.add_row([data20[i][0],data20[i][1]])
-    print(myTable)
-#--------------------------------------------------------------------------------------------------
+
+#----------------------------------------------------------------------------------------------
 print("3. Exclusões")
 print("Digite abaixo as informações que devem ser excluídas para cada modelo.")
 data21 = []
@@ -2064,7 +2968,7 @@ j=0
 i = 1
 while (t == 0):
   while(j==0):
-    print("Para continuar adicionando mais itens a serem excluídos para ", data21[a][0], "digite 1 e para parar digite 0.")
+    print("Para continuar adicionando mais itens a serem excluídos para ", data21[a][1], "digite 1 e para parar digite 0.")
     f = int(input())
     if f == 1:
         data21.append([])
@@ -2098,7 +3002,7 @@ from prettytable import PrettyTable
 
 myTable = PrettyTable([data21[0][0], data21[0][1], data21[0][2]])
 for i in range(1, x):
-    myTable.add_row([data21[0][0], data21[0][1], data21[0][2]])
+    myTable.add_row([data21[i][0], data21[i][1], data21[i][2]])
 print(myTable)
 num1 = int(input())
 if (num1 == 1):
@@ -2120,15 +3024,14 @@ if (num1 == 1):
         print("Deseja trocar mais alguma informação?(Digite 1 se sim ou 0, caso contrário)")
         myTable = PrettyTable([data21[0][0], data21[0][1], data21[0][2]])
         for i in range(1, x):
-          myTable.add_row([data21[0][0], data21[0][1], data21[0][2]])
+          myTable.add_row([data21[i][0], data21[i][1], data21[i][2]])
         print(myTable)
 
         num1 = int(input())
         if (num1 == 0):
             break
 
-
-#--------------------------------------------------------------------------------------------------
+#----------------------------------------------------------------------------------------------
 print("4. Categoria de objetos REVIT")
 print("Digite abaixo as informações referentes à categoria de objetos REVIT")
 data22 = []
@@ -2208,32 +3111,30 @@ if(num1==1):
       print("Agora digite a informação correta:")
       data22[num3][1] = input()
     print("Deseja trocar mais alguma informação?(Digite 1 se sim ou 0, caso contrário)")
+    myTable = PrettyTable([data22[0][0], data22[0][1]])
+    for i in range(1, 37):
+        myTable.add_row([data22[i][0], data22[i][1]])
+    print(myTable)
     num1=int(input())
     if(num1==0):
       break
-    myTable= PrettyTable([data22[0][0],data22[0][1]])
-    for i in range (1,37):
-      myTable.add_row([data22[i][0],data22[i][1]])
-    print(myTable)
-#--------------------------------------------------------------------------------------------------
+
+
+#----------------------------------------------------------------------------------------------
 pdf = PDF()
 pdf.add_page()
-pdf.set_font("Times", size=10)
+pdf.set_font("Times", size=8)
 
 pdf.create_table(table_data=data_as_dict,
                  title='                                                                            GUIA BIM - UFPE',
                  cell_width='even')
 pdf.ln()
-
 pdf.create_table(table_data=data, title='MEMBROS', cell_width='even')
 pdf.ln()
-
 pdf.create_table(table_data=data2, title='OBJETIVOS BIM', cell_width='even')
 pdf.ln()
-
 pdf.create_table(table_data=data4, title='FASES DO PROJETO', cell_width='even')
 pdf.ln()
-
 pdf.create_table(table_data=data5, title='FUNÇÕES ORGANIZACIONAIS', cell_width='even')
 pdf.ln()
 pdf.create_table(table_data=data13, title='', cell_width='even')
@@ -2244,28 +3145,29 @@ pdf.create_table(table_data=data11, title='NECESSIDADES DE INFRAESTRUTURA TECNOL
 pdf.ln()
 pdf.create_table(table_data=data12, title='NECESSIDADES DE INFRAESTRUTURA TECNOLÓGICA - CONTEÚDO DE MODELAGEM E INFORMAÇÕES DE REFERÊNCIA', cell_width='even')
 pdf.ln()
-
-pdf.create_table(table_data=data6, title='                                              PROCEDIMENTOS DE COLABORAÇÃO  ', cell_width='even')
+pdf.create_table(table_data=data6, title='PROCEDIMENTOS DE COLABORAÇÃO  ', cell_width='even')
 pdf.ln()
-
 pdf.create_table(table_data=data7, title='2. Procedimentos de reunião', cell_width='even')
 pdf.ln()
 pdf.create_table(table_data=data9, title='3. Modelo de cronograma de entrega de troca de informações para submissão e aprovação', cell_width='even')
-pdf.create_table(table_data=data6, title='', cell_width='even')
+pdf.ln()
+pdf.create_table(table_data=data14, title='', cell_width='even')
 pdf.ln()
 pdf.create_table(table_data=data15, title='5. Procedimentos de comunicação eletrônica', cell_width='even')
 pdf.ln()
-pdf.create_table(table_data= data17, title= '                                                                CONTROLE DE QUALIDADE                                                                                                         1. Estratégia geral para controle de qualidade', cell_width='even')
+pdf.create_table(table_data= data17, title= 'CONTROLE DE QUALIDADE                                                                                                                             1. Estratégia geral para controle de qualidade', cell_width='even')
 pdf.ln()
-pdf.create_table(table_data= data18, title= '                                                     2. Precisão e tolerância do modelo', cell_width='even')
+pdf.create_table(table_data= data18, title= '2. Precisão e tolerância do modelo', cell_width='even')
 pdf.ln()
-pdf.create_table(table_data= data19, title= '                                                     ESTRUTURA DO MODELO                                                                                                        1. Estrutura de nomeação do título', cell_width='even')
+pdf.create_table(table_data= data19, title= 'ESTRUTURA DO MODELO                                                                                                                                  1. Estrutura de nomeação do título', cell_width='even')
 pdf.ln()
-pdf.create_table(table_data= data20, title= '                                                                  2. Padrões de modelagem', cell_width='even')
+pdf.create_table(table_data= data20, title= '2. Padrões de modelagem', cell_width='even')
 pdf.ln()
-pdf.create_table(table_data= data21, title= '                                                                  3. Exclusões', cell_width='even')
+pdf.create_table(table_data= data21, title= '3. Exclusões', cell_width='even')
 pdf.ln()
-pdf.create_table(table_data= data22, title= '                                                                  4. Categorias de objetos REVIT', cell_width='even')
+pdf.create_table(table_data= data22, title= '4. Categorias de objetos REVIT', cell_width='even')
 pdf.ln()
+
+
 pdf.output('guia_ufpe.pdf')
 print("Operação encerrada")
